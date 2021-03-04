@@ -11,14 +11,13 @@ namespace NullLib.LockBitmap
         IntPtr Iptr = IntPtr.Zero;
         BitmapData bitmapData = null;
 
-        public byte[] Pixels { get => pixels; }
         public int Depth { get => depth; }
         public int Width { get => width; }
         public int Height { get => height; }
         public bool IsLocked { get => isLocked; }
 
-        private Func<int, int, Color> colorGetter = (x, y) => throw new InvalidOperationException("Bitmap haven't been locked.");
-        private Action<int, int, Color> colorSetter = (x, y, z) => throw new InvalidOperationException("Bitmap haven't been locked.");
+        Func<int, int, Color> colorGetter = (x, y) => throw new InvalidOperationException("Bitmap haven't been locked.");
+        Action<int, int, Color> colorSetter = (x, y, z) => throw new InvalidOperationException("Bitmap haven't been locked.");
 
         public LockBitmap(Bitmap source)
         {
@@ -37,10 +36,9 @@ namespace NullLib.LockBitmap
                 this.height = source.Height;
 
                 // get total locked pixels count
-                //int PixelCount = Width * Height;
 
                 // Create rectangle to lock
-                Rectangle rect = new System.Drawing.Rectangle(0, 0, Width, Height);
+                Rectangle rect = new Rectangle(0, 0, width, height);
 
                 // Lock bitmap and return bitmap data
                 bitmapData = source.LockBits(rect, ImageLockMode.ReadWrite,
@@ -74,7 +72,7 @@ namespace NullLib.LockBitmap
                         colorGetter = (x, y) =>
                         {
                             int offset = y * stride + x * 3;
-                            return Color.FromArgb(pixels[offset + 2], bmpdata[offset + 1], bmpdata[offset]);
+                            return Color.FromArgb(bmpdata[offset + 2], bmpdata[offset + 1], bmpdata[offset]);
                         };
                         colorSetter = (x, y, color) =>
                         {
@@ -119,17 +117,16 @@ namespace NullLib.LockBitmap
         /// </summary>
         public void UnlockBits()
         {
-            try
-            {
-                // Unlock bitmap data
-                source.UnlockBits(bitmapData);
+            if (!isLocked)
+                throw new InvalidOperationException("Bitmap haven't been locked.");
 
-                this.isLocked = false;
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
+            // Unlock bitmap data
+            source.UnlockBits(bitmapData);
+
+            this.colorGetter = (x, y) => throw new InvalidOperationException("Bitmap haven't been locked.");
+            this.colorSetter = (x, y, z) => throw new InvalidOperationException("Bitmap haven't been locked.");
+
+            this.isLocked = false;
         }
 
         /// <summary>
@@ -159,13 +156,12 @@ namespace NullLib.LockBitmap
             return x >= 0 && x < this.width && y > 0 && y < this.height;
         }
 
-        #region IDisposable Support
-        private byte[] pixels;
         private int depth;
         private int width;
         private int height;
         private bool isLocked;
 
+        #region IDisposable Support
         // TODO: 仅当以上 Dispose(bool disposing) 拥有用于释放未托管资源的代码时才替代终结器。
         ~LockBitmap()
         {
